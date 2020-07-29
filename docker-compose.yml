@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  traefik:
+    container_name: traefik
+    image: traefik:2.2 
+    restart: always
+    command:
+      - "--api"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # Lets encrypt
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
+      - "--certificatesresolvers.le.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.le.acme.email=harveyconnor97@gmail.com"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+      # Docker
+      - "--providers.docker"
+      - "--providers.docker.exposedByDefault=false"
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      traefik:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # Dashboard
+      - "traefik.http.routers.traefik.rule=Host(`home.harveyconnor.com`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=admin"
+      # Lets encrypt
+      - "traefik.http.routers.traefik.tls.certresolver=le"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      # Basic Auth
+      - "traefik.http.middlewares.admin.basicauth.usersfile=/.htpasswd"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      # Global redirect to https
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=https-redirect"
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./.htpasswd:/.htpasswd" 
+networks:
+  traefik:
+    name: traefik
+    external: false
